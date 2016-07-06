@@ -27,6 +27,11 @@ func main() {
 			Usage:  "Slack Channel to post into",
 		},
 		cli.StringFlag{
+			Name:   "filename, f",
+			EnvVar: "UITS_FILENAME",
+			Usage:  "File name to upload",
+		},
+		cli.StringFlag{
 			Name:   "token, t",
 			EnvVar: "UITS_SLACK_TOKEN",
 			Usage:  "Slack Token",
@@ -36,26 +41,30 @@ func main() {
 }
 
 func run(context *cli.Context) error {
-	channel, token := getOpts(context)
+	channel, filename, token := getOpts(context)
 	content := bufio.NewReader(os.Stdin)
 
 	client := slack.New(channel, token)
-	err := client.Upload(content)
+	err := client.Upload(filename, content)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
 	return err
 }
 
-func getOpts(context *cli.Context) (string, string) {
+func getOpts(context *cli.Context) (string, string, string) {
 	channel := context.String("channel")
+	filename := context.String("filename")
 	token := context.String("token")
 
-	if channel == "" || token == "" {
+	if channel == "" || filename == "" || token == "" {
 		cli.ShowAppHelp(context)
 
 		if channel == "" {
 			color.Red("  Missing required flag --channel or UITS_SLACK_CHANNEL")
+		}
+		if filename == "" {
+			color.Red("  Missing required flag --filename or UITS_FILENAME")
 		}
 		if token == "" {
 			color.Red("  Missing required flag --token or UITS_SLACK_TOKEN")
@@ -63,7 +72,7 @@ func getOpts(context *cli.Context) (string, string) {
 		os.Exit(1)
 	}
 
-	return channel, token
+	return channel, filename, token
 }
 
 func version() string {

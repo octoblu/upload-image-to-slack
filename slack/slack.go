@@ -15,8 +15,8 @@ const slackURL = "https://slack.com/api/files.upload"
 
 // Slack can upload images to slack
 type Slack interface {
-	// Upload takes file content and upload it up to slack
-	Upload(content *bufio.Reader) error
+	// Upload takes file content and uploads it up to slack
+	Upload(filename string, content *bufio.Reader) error
 }
 
 type httpSlack struct {
@@ -33,8 +33,8 @@ func New(channel, token string) Slack {
 	return &httpSlack{channel, token}
 }
 
-func (slack *httpSlack) Upload(content *bufio.Reader) error {
-	request, err := slack.createRequest(content)
+func (slack *httpSlack) Upload(filename string, content *bufio.Reader) error {
+	request, err := slack.createRequest(filename, content)
 	if err != nil {
 		return err
 	}
@@ -42,8 +42,8 @@ func (slack *httpSlack) Upload(content *bufio.Reader) error {
 	return slack.doRequest(request)
 }
 
-func (slack *httpSlack) createRequest(content *bufio.Reader) (*http.Request, error) {
-	body, contentType, err := slack.createRequestBody(content)
+func (slack *httpSlack) createRequest(filename string, content *bufio.Reader) (*http.Request, error) {
+	body, contentType, err := slack.createRequestBody(filename, content)
 	if err != nil {
 		return nil, err
 	}
@@ -58,11 +58,11 @@ func (slack *httpSlack) createRequest(content *bufio.Reader) (*http.Request, err
 	return request, nil
 }
 
-func (slack *httpSlack) createRequestBody(content *bufio.Reader) (*bytes.Buffer, string, error) {
+func (slack *httpSlack) createRequestBody(filename string, content *bufio.Reader) (*bytes.Buffer, string, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	part, err := writer.CreateFormFile("file", "foo.txt")
+	part, err := writer.CreateFormFile("file", filename)
 	if err != nil {
 		return nil, "", err
 	}
@@ -72,7 +72,7 @@ func (slack *httpSlack) createRequestBody(content *bufio.Reader) (*bytes.Buffer,
 		return nil, "", err
 	}
 
-	err = writer.WriteField("filename", "foo.txt")
+	err = writer.WriteField("filename", filename)
 	if err != nil {
 		return nil, "", err
 	}
