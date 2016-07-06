@@ -1,16 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/codegangsta/cli"
 	"github.com/coreos/go-semver/semver"
 	"github.com/fatih/color"
+	"github.com/octoblu/upload-image-to-slack/slack"
 	De "github.com/tj/go-debug"
 )
 
@@ -23,52 +22,48 @@ func main() {
 	app.Action = run
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:   "example, e",
-			EnvVar: "UPLOAD_IMAGE_TO_SLACK_EXAMPLE",
-			Usage:  "Example string flag",
+			Name:   "channel, c",
+			EnvVar: "UITS_SLACK_CHANNEL",
+			Usage:  "Slack Channel to post into",
+		},
+		cli.StringFlag{
+			Name:   "token, t",
+			EnvVar: "UITS_SLACK_TOKEN",
+			Usage:  "Slack Token",
 		},
 	}
 	app.Run(os.Args)
 }
 
-func run(context *cli.Context) {
-	example := getOpts(context)
+func run(context *cli.Context) error {
+	channel, token := getOpts(context)
+	content := bufio.NewReader(os.Stdin)
 
-	sigTerm := make(chan os.Signal)
-	signal.Notify(sigTerm, syscall.SIGTERM)
-
-	sigTermReceived := false
-
-	go func() {
-		<-sigTerm
-		fmt.Println("SIGTERM received, waiting to exit")
-		sigTermReceived = true
-	}()
-
-	for {
-		if sigTermReceived {
-			fmt.Println("I'll be back.")
-			os.Exit(0)
-		}
-
-		debug("upload-image-to-slack.loop: %v", example)
-		time.Sleep(1 * time.Second)
+	client := slack.New(channel, token)
+	err := client.Upload(content)
+	if err != nil {
+		log.Fatalln(err.Error())
 	}
+	return err
 }
 
-func getOpts(context *cli.Context) string {
-	example := context.String("example")
+func getOpts(context *cli.Context) (string, string) {
+	channel := context.String("channel")
+	token := context.String("token")
 
-	if example == "" {
+	if channel == "" || token == "" {
 		cli.ShowAppHelp(context)
 
-		if example == "" {
-			color.Red("  Missing required flag --example or UPLOAD_IMAGE_TO_SLACK_EXAMPLE")
+		if channel == "" {
+			color.Red("  Missing required flag --channel or UITS_SLACK_CHANNEL")
+		}
+		if token == "" {
+			color.Red("  Missing required flag --token or UITS_SLACK_TOKEN")
 		}
 		os.Exit(1)
 	}
 
-	return example
+	return channel, token
 }
 
 func version() string {
